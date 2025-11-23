@@ -1,100 +1,94 @@
 <script lang="ts">
-  import { Button } from "$lib/components/ui/button";
-  import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-  } from "$lib/components/ui/card";
-  import toast, { Toaster } from "svelte-5-french-toast";
-  import { Input } from "$lib/components/ui/input";
-  import { Label } from "$lib/components/ui/label";
-  import { AlertCircle, Loader2 } from "lucide-svelte";
-  import TeamGrid from "$lib/components/TeamGrid.svelte";
-  import PredictionResults from "$lib/components/PredictionResults.svelte";
-  import { getBettingPrediction } from "$lib/api";
-  import type { BettingPrediction, NFLTeam } from "$lib/types";
+import { Button } from "$lib/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "$lib/components/ui/card";
+import toast, { Toaster } from "svelte-5-french-toast";
+import { Label } from "$lib/components/ui/label";
+import { Loader2 } from "lucide-svelte";
+import MatchList from "$lib/components/MatchList.svelte";
+import PredictionResults from "$lib/components/PredictionResults.svelte";
+import LoadingScreen from "$lib/components/LoadingScreen.svelte";
+import { getBettingPrediction } from "$lib/api";
+import type { BettingPrediction, NFLMatch } from "$lib/types";
+import type { StatusResponse } from "$lib/api";
 
-  let homeTeam: NFLTeam | null = $state(null);
-  let awayTeam: NFLTeam | null = $state(null);
-  let week: number = $state(1);
-  let loading = $state(false);
-  let error: string | null = $state(null);
-  let prediction: BettingPrediction | null = $state(null);
+let selectedMatch: NFLMatch | null = $state(null);
+let loading = $state(false);
+let prediction: BettingPrediction | null = $state(null);
+let resultsElement: HTMLElement | undefined = $state(undefined);
+let currentStatus: StatusResponse | null = $state(null);
 
-  // Track the displayed match in results
-  let displayedMatch = $state<{
-    homeTeam: string;
-    awayTeam: string;
-    week: number;
-  } | null>(null);
+// Track the displayed match in results
+let displayedMatch = $state<{
+  homeTeam: string;
+  awayTeam: string;
+  week: number;
+} | null>(null);
 
-  const isFormValid = $derived(
-    homeTeam !== null && awayTeam !== null && week >= 1 && week <= 18,
-  );
+const isFormValid = $derived(selectedMatch !== null);
 
-  async function handleSubmit() {
-    if (!isFormValid || !homeTeam || !awayTeam) return;
+async function handleSubmit() {
+  if (!isFormValid || !selectedMatch) return;
 
-    if (homeTeam.name == awayTeam.name) {
-      toast.error("Home team != Away Team!");
-      return;
-    }
+  loading = true;
+  prediction = null;
+  currentStatus = null;
 
-    loading = true;
-    error = null;
-    prediction = null;
+  try {
+    const result = await getBettingPrediction(
+      selectedMatch.homeTeam.name,
+      selectedMatch.awayTeam.name,
+      selectedMatch.week
+    );
 
-    try {
-      const result = await getBettingPrediction(
-        homeTeam.abbreviation,
-        awayTeam.abbreviation,
-        week,
-      );
+    prediction = result;
+    displayedMatch = {
+      homeTeam: selectedMatch.homeTeam.name,
+      awayTeam: selectedMatch.awayTeam.name,
+      week: selectedMatch.week,
+    };
 
-      prediction = result;
-      displayedMatch = {
-        homeTeam: homeTeam.name,
-        awayTeam: awayTeam.name,
-        week,
-      };
-    } catch (err) {
-      error =
-        err instanceof Error ? err.message : "An unexpected error occurred";
-    } finally {
-      loading = false;
-    }
+    // Scroll to results smoothly after DOM update
+    requestAnimationFrame(() => {
+      resultsElement?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  } catch (err) {
+    toast.error("Not available currently!");
+  } finally {
+    loading = false;
+    currentStatus = null;
   }
+}
 
-  function handleHomeTeamSelect(team: NFLTeam) {
-    homeTeam = team;
-  }
+function handleMatchSelect(match: NFLMatch) {
+  selectedMatch = match;
+}
 
-  function handleAwayTeamSelect(team: NFLTeam) {
-    awayTeam = team;
-  }
-
-  // Features data
-  const features = [
-    {
-      icon: "📊",
-      title: "Data-Driven Predictions",
-      description:
-        "Calibrate your bets with data and dynamically generated graphs using E2B sanboxes",
-    },
-    {
-      icon: "⚡",
-      title: "Up-to-Date Insights",
-      description:
-        "Real-time insights helping your decisions, powered by Brave browser MCP server.",
-    },
-    {
-      icon: "⚠️",
-      title: "Not Betting Advice",
-      description: "This is informational content for analytical purposes only",
-    },
-  ];
+// Features data
+const features = [
+  {
+    icon: "📊",
+    title: "Data-Driven Predictions",
+    description:
+      "Calibrate your bets with data and dynamically generated graphs using E2B sanboxes",
+  },
+  {
+    icon: "⚡",
+    title: "Up-to-Date Insights",
+    description:
+      "Real-time insights helping your decisions, powered by Brave browser MCP server.",
+  },
+  {
+    icon: "⚠️",
+    title: "Not Betting Advice",
+    description: "This is informational content for analytical purposes only",
+  },
+];
 </script>
 
 <svelte:head>
@@ -115,9 +109,9 @@
     <!-- Input Form -->
     <Card class="mb-8">
       <CardHeader>
-        <CardTitle>Select Match Details</CardTitle>
+        <CardTitle>Select a Match</CardTitle>
         <CardDescription
-          >Choose two teams and the week to get a prediction</CardDescription
+          >Choose an upcoming NFL matchup to get a prediction</CardDescription
         >
       </CardHeader>
       <CardContent>
@@ -128,48 +122,11 @@
           }}
           class="space-y-8"
         >
-          <div class="flex gap-8">
-            <!-- Home Team Grid -->
-            <div class="w-1/2 space-y-3">
-              <Label>Home Team</Label>
-              <TeamGrid
-                selectedTeam={homeTeam}
-                onSelect={handleHomeTeamSelect}
-              />
-            </div>
-
-            <!-- Away Team Grid -->
-            <div class="w-1/2 space-y-3">
-              <Label>Away Team</Label>
-              <TeamGrid
-                selectedTeam={awayTeam}
-                onSelect={handleAwayTeamSelect}
-              />
-            </div>
+          <!-- Match List -->
+          <div class="space-y-3">
+            <Label>Upcoming Matches</Label>
+            <MatchList {selectedMatch} onSelect={handleMatchSelect} />
           </div>
-
-          <!-- Week Input -->
-          <div class="space-y-2">
-            <Label for="week">Week of Season</Label>
-            <Input
-              id="week"
-              type="number"
-              min="1"
-              max="18"
-              bind:value={week}
-              placeholder="Enter week (1-18)"
-            />
-          </div>
-
-          <!-- Error Message -->
-          {#if error}
-            <div
-              class="flex items-center gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive"
-            >
-              <AlertCircle class="h-5 w-5 shrink-0" />
-              <span>{error}</span>
-            </div>
-          {/if}
 
           <!-- Submit Button -->
           <Button
@@ -204,18 +161,25 @@
 
     <!-- Results -->
     {#if prediction && displayedMatch}
-      <PredictionResults
-        homeTeam={displayedMatch.homeTeam}
-        awayTeam={displayedMatch.awayTeam}
-        week={displayedMatch.week}
-        {prediction}
-      />
+      <div bind:this={resultsElement}>
+        <PredictionResults
+          homeTeam={displayedMatch.homeTeam}
+          awayTeam={displayedMatch.awayTeam}
+          week={displayedMatch.week}
+          {prediction}
+        />
+      </div>
     {/if}
   </div>
 </div>
 
+<!-- Loading Screen -->
+{#if loading}
+  <LoadingScreen status={currentStatus} />
+{/if}
+
 <style>
-  :global(body) {
-    @apply scroll-smooth;
-  }
+:global(body) {
+  @apply scroll-smooth;
+}
 </style>

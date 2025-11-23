@@ -1,0 +1,10 @@
+{
+  "svelteAllowShorthand": true,
+  "svelteIndentScriptAndStyle": false,
+  "useTabs": false,
+  "tabWidth": 2,
+  "semi": true,
+  "trailingComma": "es5",
+  "singleQuote": false,
+  "plugins": ["prettier-plugin-svelte"]
+}
