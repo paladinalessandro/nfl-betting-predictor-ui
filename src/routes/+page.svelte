@@ -92,7 +92,7 @@ const features = [
 </script>
 
 <svelte:head>
-  <title>NFL Betting Predictor</title>
+  <title>BetMCP</title>
 </svelte:head>
 
 <Toaster />
@@ -100,7 +100,9 @@ const features = [
   <div class="container mx-auto py-8 px-4">
     <!-- Header -->
     <div class="mb-12 space-y-2">
-      <h1 class="text-4xl font-bold tracking-tight">NFL Betting Predictor</h1>
+      <h1 class="text-4xl font-bold tracking-tight">
+        BetMCP - Your NFL Betting Predictor
+      </h1>
       <p class="text-lg text-muted-foreground">
         Get AI up-to-date predictions for NFL matchups
       </p>
